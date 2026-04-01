@@ -1,36 +1,44 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Procurement OAuth Flow
 
-## Getting Started
+This app uses a server-side OAuth flow:
 
-First, run the development server:
+- Browser never calls `/oauth2/token` directly
+- Browser never stores `client_secret`
+- Tokens are stored in secure `httpOnly` cookies
+- Next.js routes handle code exchange, refresh, and logout
+
+## Required environment variables
+
+Set these in `.env`:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+AUTH_ISSUER=http://134.209.20.12
+AUTH_CLIENT_ID=procurement-client
+AUTH_CLIENT_SECRET=replace-with-server-only-secret
+AUTH_REDIRECT_URI=http://localhost:3000/api/auth/callback
+APP_URL=http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Auth routes
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- `GET /api/auth/login` - generates state + PKCE and redirects to authorize endpoint
+- `GET /api/auth/callback` - validates state, exchanges code, stores cookies, redirects to `/dashboard`
+- `POST /api/auth/refresh` - refreshes access token using refresh token cookie
+- `POST /api/auth/logout` - clears auth cookies and redirects to `/login`
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Frontend behavior
 
-## Learn More
+- Login button sends user to `/api/auth/login`
+- `fetchWithAutoRefresh` retries once after `POST /api/auth/refresh` when a request returns `401`
+- `AuthRefreshDaemon` checks session expiry on load and every 60s, and refreshes if expiry is near
 
-To learn more about Next.js, take a look at the following resources:
+## Protected pages
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- `proxy.ts` guards `/dashboard` and redirects unauthenticated users to `/login`
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Run locally
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+npm install
+npm run dev
+```
