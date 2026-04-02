@@ -28,7 +28,7 @@ export default function LoginPage() {
             Procurement sample
           </h1>
           <p className="text-sm text-zinc-600 dark:text-zinc-400">
-            OAuth2 PKCE login for backend testing
+            OAuth2 authorization code (browser token exchange optional)
           </p>
         </div>
 

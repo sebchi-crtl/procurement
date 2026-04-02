@@ -1,4 +1,4 @@
-/** OAuth / PKCE settings for the sample procurement app (public client, no secret). */
+/** OAuth2 authorization code (no PKCE) — for testing / confidential client flows. */
 
 export function getOAuthConfig() {
   const baseUrl =
@@ -6,44 +6,50 @@ export function getOAuthConfig() {
     "http://134.209.20.12";
   const clientId =
     process.env.NEXT_PUBLIC_OAUTH_CLIENT_ID || "procurement-client";
+  /** Only for browser-direct token exchange (dev). Never commit real secrets. */
+  const clientSecret =
+    process.env.NEXT_PUBLIC_OAUTH_CLIENT_SECRET?.trim() || "";
   const redirectUri =
     process.env.NEXT_PUBLIC_OAUTH_REDIRECT_URI ||
     "http://localhost:3000/callback";
   const scope =
-    process.env.NEXT_PUBLIC_OAUTH_SCOPE || "openid profile email";
-  return { baseUrl, clientId, redirectUri, scope };
+    process.env.NEXT_PUBLIC_OAUTH_SCOPE || "openid profile email offline_access";
+  const tokenUrl =
+    process.env.NEXT_PUBLIC_OAUTH_TOKEN_URL?.trim() ||
+    `${baseUrl}/oauth2/token`;
+  /** If true, callback calls the IdP token URL from the browser (visible in Network tab). */
+  const browserTokenExchange =
+    process.env.NEXT_PUBLIC_OAUTH_BROWSER_TOKEN?.trim() === "true";
+  return {
+    baseUrl,
+    clientId,
+    clientSecret,
+    redirectUri,
+    scope,
+    tokenUrl,
+    browserTokenExchange,
+  };
 }
 
-const PKCE_CHARSET =
-  "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~";
-
-function randomCodeVerifier(): string {
-  const bytes = crypto.getRandomValues(new Uint8Array(64));
-  return Array.from(bytes, (b) => PKCE_CHARSET[b % 66]).join("");
+/** RFC 6749 client_secret_basic — use from client components only (btoa). */
+export function oauth2BasicAuthorizationHeader(
+  clientId: string,
+  clientSecret: string,
+): string {
+  console.log("oauth2BasicAuthorizationHeader clientId ", clientId);
+  console.log("oauth2BasicAuthorizationHeader clientSecret ", clientSecret);
+  console.log("oauth2BasicAuthorizationHeader btoa ", btoa(`${clientId}:${clientSecret}`));
+  return `Basic ${btoa(`${clientId}:${clientSecret}`)}`;
 }
 
-async function codeChallengeS256(codeVerifier: string): Promise<string> {
-  const digest = await crypto.subtle.digest(
-    "SHA-256",
-    new TextEncoder().encode(codeVerifier),
-  );
-  return btoa(String.fromCharCode(...new Uint8Array(digest)))
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/, "");
-}
-
-/** Starts the authorization code + PKCE flow (no client secret, no Bearer on token). */
+/** Starts authorization code flow (no PKCE). */
 export async function startLogin(): Promise<void> {
   if (typeof window === "undefined") return;
 
   const { baseUrl, clientId, redirectUri, scope } = getOAuthConfig();
   const state = crypto.randomUUID();
-  const codeVerifier = randomCodeVerifier();
-  const codeChallenge = await codeChallengeS256(codeVerifier);
 
   sessionStorage.setItem("oauth_state", state);
-  sessionStorage.setItem("pkce_code_verifier", codeVerifier);
 
   const url = new URL(`${baseUrl}/oauth2/authorize`);
   url.searchParams.set("client_id", clientId);
@@ -51,8 +57,6 @@ export async function startLogin(): Promise<void> {
   url.searchParams.set("redirect_uri", redirectUri);
   url.searchParams.set("scope", scope);
   url.searchParams.set("state", state);
-  url.searchParams.set("code_challenge", codeChallenge);
-  url.searchParams.set("code_challenge_method", "S256");
 
   window.location.href = url.toString();
 }
