@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Procurement sample",
-  description: "OAuth2 PKCE sample for procurement backend testing",
+  description: "OAuth2 authorization code sample for procurement backend testing",
 };
 
 export default function RootLayout({

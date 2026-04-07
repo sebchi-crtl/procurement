@@ -107,6 +107,15 @@ function CallbackHandler() {
         if (typeof tokenData.id_token === "string" && tokenData.id_token) {
           localStorage.setItem("id_token", tokenData.id_token);
         }
+        if (
+          typeof tokenData.expires_in === "number" &&
+          tokenData.expires_in > 0
+        ) {
+          localStorage.setItem(
+            "token_expires_at",
+            String(Date.now() + tokenData.expires_in * 1000),
+          );
+        }
 
         sessionStorage.removeItem("oauth_state");
 
@@ -115,9 +124,7 @@ function CallbackHandler() {
         const message =
           err instanceof Error ? err.message : "oauth_callback_failed";
         console.error("OAuth callback error:", err);
-        console.error("OAuth callback error message:", message);
-        console.error("OAuth callback error stack:", encodeURIComponent(message));
-        // router.replace(`/login?error=${encodeURIComponent(message)}`);
+        router.replace(`/login?error=${encodeURIComponent(message)}`);
       }
     };
 

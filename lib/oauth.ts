@@ -36,9 +36,6 @@ export function oauth2BasicAuthorizationHeader(
   clientId: string,
   clientSecret: string,
 ): string {
-  console.log("oauth2BasicAuthorizationHeader clientId ", clientId);
-  console.log("oauth2BasicAuthorizationHeader clientSecret ", clientSecret);
-  console.log("oauth2BasicAuthorizationHeader btoa ", btoa(`${clientId}:${clientSecret}`));
   return `Basic ${btoa(`${clientId}:${clientSecret}`)}`;
 }
 

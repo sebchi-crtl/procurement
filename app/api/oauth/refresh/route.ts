@@ -1,9 +1,3 @@
-type TokenPayload = {
-  grant_type?: string;
-  code?: string;
-  redirect_uri?: string;
-};
-
 export const runtime = "nodejs";
 
 function basicAuthHeader(clientId: string, clientSecret: string): string {
@@ -30,15 +24,27 @@ function getTokenUrl(baseUrl: string) {
   return `${baseUrl.replace(/\/$/, "")}/oauth2/token`;
 }
 
+type Body = {
+  refresh_token?: string;
+};
+
 /**
  * POST /oauth2/token
  * Content-Type: application/x-www-form-urlencoded
  * Authorization: Basic base64(client_id:client_secret)
- * Body: grant_type=authorization_code&code=...&redirect_uri=...
+ * Body: grant_type=refresh_token&refresh_token=...
  */
 export async function POST(request: Request) {
   try {
-    const payload = (await request.json()) as TokenPayload;
+    const payload = (await request.json()) as Body;
+    const refreshToken = payload.refresh_token?.trim();
+    if (!refreshToken) {
+      return Response.json(
+        { error: "invalid_request", error_description: "refresh_token required" },
+        { status: 400 },
+      );
+    }
+
     const baseUrl =
       process.env.NEXT_PUBLIC_OAUTH_BASE_URL?.replace(/\/$/, "") ||
       "http://134.209.20.12";
@@ -47,9 +53,8 @@ export async function POST(request: Request) {
     const clientSecret = getClientSecret();
 
     const params = new URLSearchParams({
-      grant_type: payload.grant_type || "authorization_code",
-      code: payload.code || "",
-      redirect_uri: payload.redirect_uri || "http://localhost:3000/callback",
+      grant_type: "refresh_token",
+      refresh_token: refreshToken,
     });
 
     const headers: Record<string, string> = {
@@ -103,8 +108,7 @@ export async function POST(request: Request) {
     return Response.json(
       {
         error: "unexpected_response",
-        error_description:
-          "Token endpoint did not return JSON (often HTML login page).",
+        error_description: "Token endpoint did not return JSON.",
         status: upstreamRes.status,
         body_preview: raw.slice(0, 200),
       },
@@ -112,10 +116,10 @@ export async function POST(request: Request) {
     );
   } catch (error: unknown) {
     const message =
-      error instanceof Error ? error.message : "Token exchange failed";
-    console.error("OAuth proxy token exchange error:", error);
+      error instanceof Error ? error.message : "Refresh token exchange failed";
+    console.error("OAuth refresh error:", error);
     return Response.json(
-      { error: "oauth_proxy_error", error_description: message },
+      { error: "oauth_refresh_error", error_description: message },
       { status: 500 },
     );
   }
